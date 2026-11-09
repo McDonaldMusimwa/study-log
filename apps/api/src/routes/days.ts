@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { z } from 'zod'
 import { db } from '../db/client.js'
-import { days, sessions, tracks, units } from '../db/schema.js'
+import { days, notes, sessions, tracks, units } from '../db/schema.js'
 import { dayNumber, studiedDates } from '../lib/activity.js'
 import { DraftRefusedError, draftPost } from '../lib/draft.js'
 import { commitsBetween } from '../lib/github.js'
@@ -77,11 +77,25 @@ dayRoutes.put('/days/:date', async (c) => {
 dayRoutes.post('/days/:date/draft', async (c) => {
   const date = dateParam(c.req.param('date'))
   const { tone } = await body(c, z.object({ tone: z.enum(['story', 'technical', 'short']).default('story') }))
-  const { day, sessions: daySessions, dayNumber: n } = await loadDay(date)
+  const [{ day, sessions: daySessions, dayNumber: n }, dayNotes] = await Promise.all([
+    loadDay(date),
+    db
+      .select({ track: tracks.name, round: notes.round, text: notes.text, hasDrawing: notes.drawingSvg })
+      .from(notes)
+      .innerJoin(tracks, eq(tracks.id, notes.trackId))
+      .where(eq(notes.date, date))
+      .orderBy(asc(notes.createdAt)),
+  ])
 
   let draft
   try {
-    draft = await draftPost({ ...day, dayNumber: n, tone, sessions: daySessions })
+    draft = await draftPost({
+      ...day,
+      dayNumber: n,
+      tone,
+      sessions: daySessions,
+      notes: dayNotes.map((note) => ({ ...note, hasDrawing: Boolean(note.hasDrawing) })),
+    })
   } catch (error) {
     if (error instanceof DraftRefusedError) throw new HTTPException(422, { message: error.message })
     if (error instanceof Anthropic.AuthenticationError) throw new HTTPException(502, { message: 'ANTHROPIC_API_KEY was rejected' })

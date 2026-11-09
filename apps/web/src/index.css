@@ -51,6 +51,49 @@
   }
 }
 
+/* Rich-text notes, both in the editor and when displayed. 16px on phones so iOS doesn't zoom into the editor. */
+@layer components {
+  .note-content {
+    @apply text-base leading-relaxed text-ink sm:text-[15px];
+
+    & > * + * {
+      @apply mt-2.5;
+    }
+    & h2 {
+      @apply font-display text-lg font-bold;
+    }
+    & ul {
+      @apply list-disc pl-5;
+    }
+    & ol {
+      @apply list-decimal pl-5;
+    }
+    & li > p {
+      @apply my-0.5;
+    }
+    & blockquote {
+      @apply border-l-2 border-accent pl-3 text-soft;
+    }
+    & code {
+      @apply rounded bg-bg px-1 py-0.5 font-mono text-[0.9em];
+    }
+    & pre {
+      @apply overflow-x-auto rounded-lg bg-night p-3 font-mono text-sm text-white;
+
+      & code {
+        @apply bg-transparent p-0;
+      }
+    }
+    & a {
+      @apply underline;
+    }
+    & p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      @apply pointer-events-none float-left h-0 text-muted;
+    }
+  }
+}
+
 @utility card {
   @apply rounded-[18px] border border-line bg-surface;
 }

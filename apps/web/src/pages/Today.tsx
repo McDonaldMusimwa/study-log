@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { CheckIcon } from '../components/icons'
+import { NoteCard } from '../components/NoteCard'
+import { NoteEditor } from '../components/NoteEditor'
 import { RecallCard } from '../components/RecallCard'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
 import { api, type Block, type Session, type TimerAction, type Today, type TrackWithUnits } from '../lib/api'
@@ -159,6 +161,47 @@ const PHASE_COPY: Record<Phase, string> = {
   paused: 'Paused',
 }
 
+// Notes for each Pomodoro round of the running session. A break is the natural moment to write one,
+// so the button gets louder then and files the note under the round that just finished.
+function RoundNotes({ session, phase, trackName }: { session: Session; phase: Phase; trackName: string }) {
+  const [open, setOpen] = useState(false)
+  const { data: notes = [] } = useQuery({
+    queryKey: ['notes', { sessionId: session.id }],
+    queryFn: () => api.notes({ sessionId: session.id }),
+  })
+  const round = !session.pomodoro ? null : phase === 'break' ? session.pomodoros : session.pomodoros + 1
+  const onBreak = phase === 'break' && round !== null && !notes.some((n) => n.round === round)
+  const title = round ? `Round ${round} notes · ${trackName}` : `Notes · ${trackName}`
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-white/10 pt-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <h3 className="font-display text-lg font-bold">Round notes</h3>
+          <p className="text-sm text-[#c6ccd6]">
+            {onBreak ? `What did you grasp in round ${round}?` : 'Capture ideas as they click, with a sketch if it helps.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`btn ${onBreak ? 'bg-white text-ink hover:bg-[#e8eaee]' : 'border border-white/25 text-white hover:border-white/60'}`}
+        >
+          {onBreak ? `Capture round ${round}` : '+ Add note'}
+        </button>
+      </div>
+      {notes.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          {notes.map((note) => (
+            <NoteCard key={note.id} note={note} />
+          ))}
+        </div>
+      )}
+      {open && <NoteEditor title={title} target={{ sessionId: session.id, round }} onClose={() => setOpen(false)} />}
+    </div>
+  )
+}
+
 // The running session: Pomodoro rounds with automatic breaks, or a plain stopwatch, plus pause and resume.
 function RunningCard({ session, track, block }: { session: Session; track?: TrackWithUnits; block?: Block }) {
   const now = useNow(true)
@@ -186,7 +229,7 @@ function RunningCard({ session, track, block }: { session: Session; track?: Trac
     if (!due || handled.current === key) return
     handled.current = key
     chime()
-    if (due === 'break') notify('Break time', state.longBreak ? 'Take 15 minutes. You earned it.' : 'Stand up and stretch for 5 minutes.')
+    if (due === 'break') notify('Break time', 'Jot down what you grasped this round, then stand up and stretch.')
     else notify('Back to focus', `${track?.name ?? 'Your session'}: next round starts now.`)
     timer.mutate({ action: due })
   }, [due, session.id, session.pomodoros, session.pausedAt, state.longBreak, timer, track?.name])
@@ -299,6 +342,8 @@ function RunningCard({ session, track, block }: { session: Session; track?: Trac
         </label>
       </div>
       <ErrorNote error={timer.error} />
+
+      <RoundNotes session={session} phase={state.phase} trackName={track?.name ?? 'Session'} />
 
       {track && <LogForm key={session.id} session={session} track={track} />}
     </section>

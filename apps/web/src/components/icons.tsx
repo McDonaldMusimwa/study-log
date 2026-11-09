@@ -88,3 +88,12 @@ export function PostIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function NoteIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 4h11l3 3v13H5z" />
+      <path d="M9 9h6M9 13h6M9 17h3" />
+    </svg>
+  )
+}

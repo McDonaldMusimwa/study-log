@@ -1,3 +1,5 @@
+import type { JSONContent } from '@tiptap/react'
+
 // Typed calls to the API. Shapes mirror the JSON the routes in apps/api return.
 
 export type UnitStatus = 'todo' | 'in_progress' | 'done'
@@ -109,6 +111,26 @@ export type Post = { date: string; postDraft: string; postedAt: string | null }
 
 export type AuthState = { signedIn: boolean; authEnabled: boolean }
 
+// A note from a Pomodoro round. `body` is TipTap JSON; `drawing` an Excalidraw scene; `drawingSvg` its snapshot.
+export type Note = {
+  id: number
+  sessionId: number | null
+  date: string
+  trackId: number
+  unitId: number | null
+  round: number | null
+  body: JSONContent | null
+  text: string
+  drawing: string | null
+  drawingSvg: string | null
+  createdAt: string
+  updatedAt: string
+  track?: { name: string; color: string }
+  unitTitle?: string | null
+}
+
+export type NoteContent = Pick<Note, 'body' | 'text' | 'drawing' | 'drawingSvg'>
+
 export class ApiError extends Error {}
 
 // The session cookie is missing or expired; the app swaps to the login screen.
@@ -174,4 +196,14 @@ export const api = {
   deleteReview: (id: number) => request<void>('DELETE', `/reviews/${id}`),
 
   progress: (date: string) => request<Progress>('GET', `/progress?date=${date}`),
+
+  notes: (filter: { date?: string; sessionId?: number; trackId?: number }) => {
+    const params = new URLSearchParams(
+      Object.entries(filter).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)]])),
+    )
+    return request<Note[]>('GET', `/notes?${params}`)
+  },
+  addNote: (input: NoteContent & { sessionId: number; round: number | null }) => request<Note>('POST', '/notes', input),
+  updateNote: (id: number, input: NoteContent) => request<Note>('PATCH', `/notes/${id}`, input),
+  deleteNote: (id: number) => request<void>('DELETE', `/notes/${id}`),
 }

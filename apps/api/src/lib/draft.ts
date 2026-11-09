@@ -7,6 +7,8 @@ export type Tone = 'story' | 'technical' | 'short'
 export type DraftInput = {
   dayNumber: number
   sessions: { track: string; unit: string | null; minutes: number; learned: string; produced: string }[]
+  // Notes taken during Pomodoro rounds, in the order they were written.
+  notes: { track: string; round: number | null; text: string; hasDrawing: boolean }[]
   learned: string
   applied: string
   commits: Commit[]
@@ -38,12 +40,20 @@ function describeDay(input: DraftInput) {
     )
     .join('\n')
   const commits = input.commits.map((c) => `- ${c.sha} ${c.message}`).join('\n')
+  const notes = input.notes
+    .filter((n) => n.text.trim() || n.hasDrawing)
+    .map((n) => {
+      const label = `${n.track}${n.round ? `, round ${n.round}` : ''}`
+      const drawing = n.hasDrawing ? ' (he also sketched a diagram)' : ''
+      return `- ${label}${drawing}: ${n.text.trim().replace(/\s+/g, ' ') || '(drawing only)'}`
+    })
+    .join('\n')
 
   return `Day ${input.dayNumber} of learning in public.
 
 Study sessions:
 ${sessions || '- (none logged)'}
-
+${notes ? `\nNotes taken during the Pomodoro rounds:\n${notes}\n` : ''}
 What clicked today:
 ${input.learned || '(not written)'}
 

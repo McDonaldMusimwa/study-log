@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NavLink, Navigate, Route, Routes } from 'react-router'
-import { BookIcon, CardsIcon, ChartIcon, PenIcon, PostIcon, SunIcon } from './components/icons'
+import { BookIcon, CardsIcon, ChartIcon, NoteIcon, PenIcon, PostIcon, SunIcon } from './components/icons'
 import { api } from './lib/api'
 import { useToday } from './lib/date'
 import { Login } from './pages/Login'
+import { Notes } from './pages/Notes'
 import { Posts } from './pages/Posts'
 import { ProgressPage } from './pages/Progress'
 import { Review } from './pages/Review'
@@ -12,6 +13,7 @@ import { WrapUp } from './pages/WrapUp'
 
 const links = [
   { to: '/', label: 'Today', end: true, Icon: SunIcon },
+  { to: '/notes', label: 'Notes', Icon: NoteIcon },
   { to: '/wrap-up', label: 'Wrap-up', Icon: PenIcon },
   { to: '/progress', label: 'Progress', Icon: ChartIcon },
   { to: '/review', label: 'Review', Icon: CardsIcon },
@@ -37,7 +39,7 @@ function TabBar({ today }: { today: string }) {
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
     >
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {links.map(({ to, label, end, Icon }) => (
           <NavLink
             key={to}
@@ -132,6 +134,7 @@ export default function App() {
           <Route path="/wrap-up/:date" element={<WrapUp today={today} />} />
           <Route path="/progress" element={<ProgressPage today={today} />} />
           <Route path="/review" element={<Review today={today} />} />
+          <Route path="/notes" element={<Notes />} />
           <Route path="/posts" element={<Posts />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

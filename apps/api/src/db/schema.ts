@@ -101,3 +101,25 @@ export const days = sqliteTable('days', {
     .notNull()
     .$defaultFn(() => new Date()),
 })
+
+// What was grasped during one Pomodoro round: rich text (TipTap JSON plus a plain-text copy for search and
+// post drafts) and an optional whiteboard (an Excalidraw scene plus an SVG snapshot for display).
+export const notes = sqliteTable('notes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id').references(() => sessions.id),
+  date: text('date').notNull(),
+  trackId: integer('track_id')
+    .notNull()
+    .references(() => tracks.id),
+  unitId: integer('unit_id').references(() => units.id),
+  // 1-based Pomodoro round; null for notes taken outside a Pomodoro.
+  round: integer('round'),
+  body: text('body', { mode: 'json' }).$type<unknown>(),
+  text: text('text').notNull().default(''),
+  drawing: text('drawing'),
+  drawingSvg: text('drawing_svg'),
+  createdAt: createdAt(),
+  updatedAt: instant('updated_at')
+    .notNull()
+    .$defaultFn(() => new Date()),
+})

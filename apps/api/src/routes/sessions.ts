@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { z } from 'zod'
 import { db } from '../db/client.js'
-import { sessions, units } from '../db/schema.js'
+import { notes, sessions, units } from '../db/schema.js'
 import { isDate } from '../lib/dates.js'
 import { body, idParam } from '../lib/http.js'
 
@@ -111,6 +111,9 @@ sessionRoutes.patch('/sessions/:id', async (c) => {
 })
 
 sessionRoutes.delete('/sessions/:id', async (c) => {
-  await db.delete(sessions).where(eq(sessions.id, idParam(c.req.param('id'))))
+  // A discarded session takes its round notes with it.
+  const id = idParam(c.req.param('id'))
+  await db.delete(notes).where(eq(notes.sessionId, id))
+  await db.delete(sessions).where(eq(sessions.id, id))
   return c.body(null, 204)
 })

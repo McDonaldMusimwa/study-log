@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
+import { NoteCard } from '../components/NoteCard'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
-import { api, type Commit, type DayDetail, type Tone } from '../lib/api'
+import { api, type Commit, type DayDetail, type Note, type Tone } from '../lib/api'
 import { addDays, dayBounds, formatDay, formatMinutes } from '../lib/date'
 
 const AREAS = ['backend', 'agent', 'postgres', 'docker / ci', 'web', 'mobile']
@@ -54,11 +55,16 @@ function Commits({ date, selected, onToggle }: { date: string; selected: Commit[
   )
 }
 
-function WrapUpForm({ date, detail }: { date: string; detail: DayDetail }) {
+function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; notes: Note[] }) {
   const { day, sessions } = detail
   const queryClient = useQueryClient()
+  // Start from the day's round notes and session summaries, oldest first, if nothing is written yet.
   const [learned, setLearned] = useState(
-    day.learned || sessions.map((s) => s.learned).filter(Boolean).join('\n'),
+    () =>
+      day.learned ||
+      [...notes.slice().reverse().map((n) => n.text.trim()), ...sessions.map((s) => s.learned)]
+        .filter(Boolean)
+        .join('\n'),
   )
   const [applied, setApplied] = useState(day.applied)
   const [next, setNext] = useState(day.next)
@@ -141,6 +147,18 @@ function WrapUpForm({ date, detail }: { date: string; detail: DayDetail }) {
                 </li>
               ))}
             </ul>
+          )}
+          {notes.length > 0 && (
+            <details className="mt-1 rounded-xl bg-bg p-3" open={notes.length <= 3}>
+              <summary className="min-h-8 cursor-pointer text-sm font-semibold text-soft">
+                Today's round notes ({notes.length})
+              </summary>
+              <div className="mt-3 flex flex-col gap-2.5">
+                {notes.map((note) => (
+                  <NoteCard key={note.id} note={note} />
+                ))}
+              </div>
+            </details>
           )}
         </div>
 
@@ -278,6 +296,7 @@ function WrapUpForm({ date, detail }: { date: string; detail: DayDetail }) {
 export function WrapUp({ today }: { today: string }) {
   const date = useParams().date ?? today
   const { data, error } = useQuery({ queryKey: ['day', date], queryFn: () => api.day(date) })
+  const notes = useQuery({ queryKey: ['notes', { date }], queryFn: () => api.notes({ date }) })
 
   return (
     <>
@@ -300,7 +319,11 @@ export function WrapUp({ today }: { today: string }) {
         }
       />
       <ErrorNote error={error} />
-      {data ? <WrapUpForm key={date} date={date} detail={data} /> : !error && <Loading />}
+      {data && notes.data ? (
+        <WrapUpForm key={date} date={date} detail={data} notes={notes.data} />
+      ) : (
+        !error && <Loading />
+      )}
     </>
   )
 }
