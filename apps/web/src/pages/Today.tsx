@@ -5,7 +5,7 @@ import { CheckIcon } from '../components/icons'
 import { RecallCard } from '../components/RecallCard'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
 import { api, type Block, type Session, type TimerAction, type Today, type TrackWithUnits } from '../lib/api'
-import { addDays, formatClock, formatDay, formatMinutes, parseDate, useNow } from '../lib/date'
+import { addDays, formatClock, formatDay, formatMinutes, formatTime, parseDate, partOfDay, useNow } from '../lib/date'
 import { FOCUS_MS, askToNotify, chime, notify, plannedRounds, timerState, type Phase } from '../lib/pomodoro'
 
 const NEW_UNIT = 'new'
@@ -224,7 +224,7 @@ function RunningCard({ session, track, block }: { session: Session; track?: Trac
       <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <span className="text-[13px] font-semibold tracking-wide text-[#a8b0bf] uppercase">
-            Now · {track?.name ?? 'Session'}
+            Now · {track?.name ?? 'Session'} · started {formatTime(session.startedAt)}
           </span>
           <h2 className="font-display text-[26px] leading-tight font-bold">
             {session.unitTitle ?? track?.units.find((u) => u.id === session.unitId)?.title ?? 'In session'}
@@ -323,7 +323,7 @@ function NowCard({ data, tracks, today }: { data: Today; tracks: TrackWithUnits[
     <section aria-label="Next session" className="flex flex-wrap items-center gap-x-8 gap-y-4 rounded-[18px] bg-night p-6 text-white sm:p-7">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="text-[13px] font-semibold tracking-wide text-[#a8b0bf] uppercase">
-          {next ? `Up next · ${next.startTime}` : data.blocks.length ? 'Plan complete' : 'Rest day'}
+          {next ? `Up next · ${partOfDay(next.startTime).toLowerCase()}` : data.blocks.length ? 'Plan complete' : 'Rest day'}
         </span>
         <h2 className="font-display text-[26px] leading-tight font-bold">
           {next ? `${next.track.name} · ${next.minutes} min` : data.blocks.length ? 'Nice work. Time to wrap up.' : 'No sessions planned today.'}
@@ -350,9 +350,13 @@ function NowCard({ data, tracks, today }: { data: Today; tracks: TrackWithUnits[
   )
 }
 
+// When you actually studied (recorded when you pressed Start and Finish), plus what came of it.
 function SessionSummary({ session }: { session: Session }) {
-  const details = [session.unitTitle, session.learned || session.produced].filter(Boolean).join(' · ')
-  return details ? <span className="text-sm text-muted">{details}</span> : null
+  const when = session.endedAt
+    ? `${formatTime(session.startedAt)}–${formatTime(session.endedAt)}`
+    : `started ${formatTime(session.startedAt)}`
+  const details = [when, session.unitTitle, session.learned || session.produced].filter(Boolean).join(' · ')
+  return <span className="text-sm text-muted">{details}</span>
 }
 
 function PlanRow({ block, today, running }: { block: Block; today: string; running: Session | null }) {
@@ -364,13 +368,12 @@ function PlanRow({ block, today, running }: { block: Block; today: string; runni
 
   return (
     <li className={`flex items-start gap-4 border-b border-[#eef0f3] px-6 py-4 last:border-b-0 ${isRunning ? 'bg-[#fafbff]' : ''}`}>
-      <span className="w-12 shrink-0 pt-0.5 text-sm font-semibold text-muted">{block.startTime}</span>
       <Swatch color={block.track.color} className="mt-1.5 size-2.5" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="font-semibold">
           {block.track.name} <span className="font-normal text-muted">· {block.minutes} min</span>
         </span>
-        {done.map((s) => (
+        {block.sessions.map((s) => (
           <SessionSummary key={s.id} session={s} />
         ))}
       </div>
@@ -459,11 +462,20 @@ export function TodayPage({ today }: { today: string }) {
           <section className="card">
             <h2 className="px-6 pt-5 pb-2 font-display text-xl font-bold">Today's plan</h2>
             {data.blocks.length ? (
-              <ol>
-                {data.blocks.map((block) => (
-                  <PlanRow key={block.id} block={block} today={today} running={data.running} />
-                ))}
-              </ol>
+              (['Morning', 'After work'] as const).map((part) => {
+                const blocks = data.blocks.filter((b) => partOfDay(b.startTime) === part)
+                if (!blocks.length) return null
+                return (
+                  <div key={part}>
+                    <h3 className="px-6 pt-3 pb-1 text-xs font-semibold tracking-wider text-muted uppercase">{part}</h3>
+                    <ol>
+                      {blocks.map((block) => (
+                        <PlanRow key={block.id} block={block} today={today} running={data.running} />
+                      ))}
+                    </ol>
+                  </div>
+                )
+              })
             ) : (
               <p className="px-6 pb-4 text-muted">Weekends are for rest and light review.</p>
             )}

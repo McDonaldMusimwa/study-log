@@ -4,7 +4,7 @@ A daily log for learning system design and DevOps in public. It tracks the study
 
 ## What it does
 
-- **Today:** the day's plan as time blocks (mornings DDIA then DevOps; evenings SystemsExpert, then React on Mon/Wed/Fri or DSA on Tue/Thu).
+- **Today:** the day's plan in order, with no fixed clock times: in the morning DDIA then DevOps; after work SystemsExpert, then React on Mon/Wed/Fri or DSA on Tue/Thu. Start any block whenever you sit down; the app records when you actually started and finished.
   - A **Pomodoro timer**: 25-minute focus rounds, then a 5-minute break that starts on its own, with a 15-minute break after every fourth round.
   - Pause and resume. Only focus time counts toward your hours.
   - When a session ends you log the chapter, section, lesson or problem, what clicked, and what you produced.
@@ -14,7 +14,7 @@ A daily log for learning system design and DevOps in public. It tracks the study
 - **Progress:** hours this week against the 14-hour target, a streak (weekends don't break it), a 12-week heatmap, weekly hours, and per-track progress with chapter, section and lesson status.
 - **Review:** spaced-repetition recall cards. You explain a concept out loud, reveal your note, and mark it "Shaky" or "Got it". Cards come back after 1, 3, 7, 14 and 30 days.
 - **Posts:** every drafted and posted LinkedIn post.
-- **Login:** a single password (`APP_PASSWORD`) keeps it private once it's online.
+- **Optional login:** set `APP_PASSWORD` and the app shows a sign-in screen. Leave it unset and the app is open.
 
 ## Stack
 
@@ -47,7 +47,7 @@ Netlify Functions don't keep files between requests, so a SQLite file there woul
    |---|---|
    | `DATABASE_URL` | the `libsql://...` URL |
    | `DATABASE_AUTH_TOKEN` | the Turso token |
-   | `APP_PASSWORD` | a long password for the login screen. The site refuses to run without it. |
+   | `APP_PASSWORD` | *(optional)* turns on a login screen |
    | `ANTHROPIC_API_KEY` | for Claude drafts |
    | `GITHUB_TOKEN` | optional |
 
@@ -92,7 +92,7 @@ Migrations in `apps/api/drizzle/` apply when the API container starts, and on ev
 |---|---|
 | `DATABASE_URL` | `file:...` for a local SQLite file, or a Turso `libsql://` URL |
 | `DATABASE_AUTH_TOKEN` | Turso token (not needed for a local file) |
-| `APP_PASSWORD` | Turns on the login screen. Required on Netlify. |
+| `APP_PASSWORD` | Optional. Turns on the login screen. |
 | `ANTHROPIC_API_KEY` | Lets Claude draft the posts. Without it, the wrap-up fills in a template instead. |
 | `GITHUB_TOKEN` | Optional for a public repo. A read-only fine-grained token avoids GitHub's rate limit of 60 requests an hour. |
 | `GITHUB_REPO` | The repo whose commits appear on the wrap-up screen (default `McDonaldMusimwa/Aitrainer`). |

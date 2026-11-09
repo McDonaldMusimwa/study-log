@@ -27,6 +27,16 @@ export function formatDay(date: string, options: Intl.DateTimeFormatOptions = { 
   return parseDate(date).toLocaleDateString(undefined, options)
 }
 
+// The local clock time of an instant, e.g. "7:12 AM" or "19:05" depending on the browser's locale.
+export function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+// The routine has no fixed times, only an order: morning sessions first, then the after-work ones.
+export function partOfDay(startTime: string) {
+  return startTime < '12:00' ? 'Morning' : 'After work'
+}
+
 export function formatMinutes(minutes: number) {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60

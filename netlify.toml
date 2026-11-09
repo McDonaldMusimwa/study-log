@@ -1,5 +1,5 @@
 # Netlify: the web app is static, the API runs as one function, and the database is Turso (hosted SQLite).
-# Set DATABASE_URL, DATABASE_AUTH_TOKEN, APP_PASSWORD and ANTHROPIC_API_KEY in the site's environment variables.
+# Set DATABASE_URL and DATABASE_AUTH_TOKEN in the site's environment variables (APP_PASSWORD and ANTHROPIC_API_KEY are optional).
 
 [build]
   # Migrations run against Turso on every deploy, before the new code goes live.

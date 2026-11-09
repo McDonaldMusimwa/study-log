@@ -5,7 +5,7 @@ import { HTTPException } from 'hono/http-exception'
 import { env } from '../env.js'
 
 // Single-user login: APP_PASSWORD unlocks the app, and a signed cookie keeps you signed in.
-// Without APP_PASSWORD the app is open, which is fine locally; on Netlify it refuses to run open.
+// Optional: without APP_PASSWORD the app is open, with no login screen.
 
 const COOKIE = 'study_log_session'
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30
@@ -55,9 +55,6 @@ export function signOut(c: Context) {
 const PUBLIC_PATHS = new Set(['/api/health', '/api/session', '/api/login', '/api/logout'])
 
 export const requireAuth: MiddlewareHandler = async (c, next) => {
-  if (env.onNetlify && !authEnabled()) {
-    throw new HTTPException(503, { message: 'Set APP_PASSWORD in the Netlify environment variables' })
-  }
   if (PUBLIC_PATHS.has(c.req.path) || isSignedIn(c)) return next()
   throw new HTTPException(401, { message: 'Sign in to continue' })
 }
