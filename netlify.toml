@@ -1,0 +1,21 @@
+# Netlify: the web app is static, the API runs as one function, and the database is Turso (hosted SQLite).
+# Set DATABASE_URL, DATABASE_AUTH_TOKEN, APP_PASSWORD and ANTHROPIC_API_KEY in the site's environment variables.
+
+[build]
+  # Migrations run against Turso on every deploy, before the new code goes live.
+  command = "npm run db:migrate -w @study-log/api && npm run build -w @study-log/web"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[functions]
+  directory = "netlify/functions"
+  # The libSQL client loads a platform-specific native module, so ship it as-is instead of bundling it.
+  external_node_modules = ["@libsql/client", "libsql"]
+
+# Client-side routes (/progress, /wrap-up/2026-11-09, ...) all load the app. The API function's own path wins over this.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

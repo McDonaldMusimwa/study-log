@@ -1,8 +1,8 @@
-import { drizzle } from 'drizzle-orm/postgres-js'
-import postgres from 'postgres'
+import { createClient } from '@libsql/client'
+import { drizzle } from 'drizzle-orm/libsql'
 import { env } from '../env.js'
 import * as schema from './schema.js'
 
-// Notices like "schema already exists, skipping" on every migration run are noise.
-export const sql = postgres(env.databaseUrl, { onnotice: () => {} })
-export const db = drizzle(sql, { schema })
+// A local file (`file:...`) in dev and Docker; a hosted Turso database (`libsql://...`) on Netlify.
+export const client = createClient({ url: env.databaseUrl, authToken: env.databaseAuthToken || undefined })
+export const db = drizzle(client, { schema })

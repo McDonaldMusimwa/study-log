@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NavLink, Navigate, Route, Routes } from 'react-router'
 import { BookIcon } from './components/icons'
 import { api } from './lib/api'
 import { useToday } from './lib/date'
+import { Login } from './pages/Login'
 import { Posts } from './pages/Posts'
 import { ProgressPage } from './pages/Progress'
 import { Review } from './pages/Review'
@@ -19,6 +20,15 @@ const links = [
 
 function Header({ today }: { today: string }) {
   const { data } = useQuery({ queryKey: ['today', today], queryFn: () => api.today(today) })
+  const authEnabled = useQuery({ queryKey: ['session'], queryFn: api.session, staleTime: Infinity }).data?.authEnabled
+  const queryClient = useQueryClient()
+  const logout = useMutation({
+    mutationFn: api.logout,
+    onSuccess: (state) => {
+      queryClient.clear()
+      queryClient.setQueryData(['session'], state)
+    },
+  })
 
   return (
     <header className="border-b border-line bg-surface">
@@ -51,6 +61,15 @@ function Header({ today }: { today: string }) {
         <span className="ml-auto text-sm text-muted">
           <strong className="text-ink">{data?.streak ?? 0}</strong>-day streak
         </span>
+        {authEnabled && (
+          <button
+            type="button"
+            onClick={() => logout.mutate()}
+            className="min-h-11 cursor-pointer rounded-lg px-3 text-sm font-semibold text-soft hover:bg-bg hover:text-ink"
+          >
+            Sign out
+          </button>
+        )}
       </div>
     </header>
   )
@@ -58,6 +77,10 @@ function Header({ today }: { today: string }) {
 
 export default function App() {
   const today = useToday()
+  const session = useQuery({ queryKey: ['session'], queryFn: api.session, staleTime: Infinity })
+
+  if (session.isPending) return null
+  if (session.data && !session.data.signedIn) return <Login />
 
   return (
     <>

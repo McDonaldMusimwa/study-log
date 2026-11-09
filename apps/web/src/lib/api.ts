@@ -107,7 +107,12 @@ export type Progress = {
 
 export type Post = { date: string; postDraft: string; postedAt: string | null }
 
+export type AuthState = { signedIn: boolean; authEnabled: boolean }
+
 export class ApiError extends Error {}
+
+// The session cookie is missing or expired; the app swaps to the login screen.
+export class SignedOutError extends ApiError {}
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -117,11 +122,17 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   })
   if (res.status === 204) return undefined as T
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError((data as { error?: string }).error ?? `Request failed (${res.status})`)
+  const message = (data as { error?: string }).error ?? `Request failed (${res.status})`
+  if (res.status === 401 && path !== '/login') throw new SignedOutError(message)
+  if (!res.ok) throw new ApiError(message)
   return data as T
 }
 
 export const api = {
+  session: () => request<AuthState>('GET', '/session'),
+  login: (password: string) => request<AuthState>('POST', '/login', { password }),
+  logout: () => request<AuthState>('POST', '/logout'),
+
   today: (date: string) => request<Today>('GET', `/today?date=${date}`),
   tracks: () => request<TrackWithUnits[]>('GET', '/tracks'),
   addUnit: (trackId: number, title: string) => request<Unit>('POST', '/units', { trackId, title }),

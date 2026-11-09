@@ -18,4 +18,4 @@ export function dayNumber(studied: Set<string>, date: string) {
   return studied.has(date) ? n : n + 1
 }
 
-export const minutesSum = sql<number>`coalesce(sum(${sessions.minutes}), 0)::int`
+export const minutesSum = sql<number>`coalesce(sum(${sessions.minutes}), 0)`.mapWith(Number)

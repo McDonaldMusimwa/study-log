@@ -24,6 +24,8 @@ COPY --from=build /app/apps/api/package.json apps/api/
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY apps/api/drizzle apps/api/drizzle
 WORKDIR /app/apps/api
+# The SQLite database lives here; compose mounts a volume over it.
+RUN mkdir -p /data && chown node:node /data
 USER node
 EXPOSE 3001
 HEALTHCHECK --interval=15s --timeout=3s CMD wget -qO- http://127.0.0.1:3001/api/health || exit 1
