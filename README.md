@@ -1,5 +1,7 @@
 # Study Log
 
+**Live: <https://study-logs.netlify.app/>**
+
 A daily log for learning system design and DevOps in public. It tracks the study routine (the DDIA book, the Udemy "Decoding DevOps" course, AlgoExpert SystemsExpert, AlgoExpert DSA and React interview questions). At the end of each day it drafts a LinkedIn post that ties what you learned to the work on [AI Trainer](https://github.com/McDonaldMusimwa/Aitrainer).
 
 ## What it does
