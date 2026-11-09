@@ -1,4 +1,4 @@
-import { date, integer, jsonb, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, date, integer, jsonb, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
 
 // A learning track: the DDIA book, the Udemy DevOps course, SystemsExpert, DSA, React.
 export const tracks = pgTable('tracks', {
@@ -49,6 +49,13 @@ export const sessions = pgTable('sessions', {
   blockId: integer('block_id').references(() => scheduleBlocks.id),
   startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
   endedAt: timestamp('ended_at', { withTimezone: true }),
+  // Pauses and Pomodoro breaks don't count as study time. `pausedMs` holds finished pauses;
+  // a pause in progress is `pausedAt` until it is resumed.
+  pausedAt: timestamp('paused_at', { withTimezone: true }),
+  pauseKind: text('pause_kind', { enum: ['pause', 'break'] }),
+  pausedMs: integer('paused_ms').notNull().default(0),
+  pomodoro: boolean('pomodoro').notNull().default(true),
+  pomodoros: integer('pomodoros').notNull().default(0),
   minutes: integer('minutes').notNull().default(0),
   learned: text('learned').notNull().default(''),
   produced: text('produced').notNull().default(''),

@@ -9,7 +9,29 @@ import { body, idParam } from '../lib/http.js'
 
 export const sessionRoutes = new Hono()
 
-const elapsedMinutes = (startedAt: Date) => Math.max(1, Math.round((Date.now() - startedAt.getTime()) / 60_000))
+type SessionRow = typeof sessions.$inferSelect
+
+// Time spent paused so far, including a pause that is still running.
+function pausedTotal(session: SessionRow, now: number) {
+  return session.pausedMs + (session.pausedAt ? now - session.pausedAt.getTime() : 0)
+}
+
+// Only focused time counts: pauses and Pomodoro breaks are left out.
+function focusedMinutes(session: SessionRow, now = Date.now()) {
+  const focusedMs = now - session.startedAt.getTime() - pausedTotal(session, now)
+  return Math.max(1, Math.round(focusedMs / 60_000))
+}
+
+function stopFields(session: SessionRow) {
+  const now = Date.now()
+  return {
+    endedAt: new Date(now),
+    minutes: focusedMinutes(session, now),
+    pausedMs: pausedTotal(session, now),
+    pausedAt: null,
+    pauseKind: null,
+  }
+}
 
 // Starting work on a unit moves it out of "todo".
 async function markStarted(unitId: number | null | undefined) {
@@ -25,6 +47,7 @@ sessionRoutes.post('/sessions', async (c) => {
       trackId: z.number().int(),
       blockId: z.number().int().nullish(),
       unitId: z.number().int().nullish(),
+      pomodoro: z.boolean().optional(),
       minutes: z.number().int().min(1).max(600).optional(),
       learned: z.string().max(4000).optional(),
       produced: z.string().max(2000).optional(),
@@ -33,10 +56,7 @@ sessionRoutes.post('/sessions', async (c) => {
 
   const session = await db.transaction(async (tx) => {
     for (const open of await tx.select().from(sessions).where(isNull(sessions.endedAt))) {
-      await tx
-        .update(sessions)
-        .set({ endedAt: new Date(), minutes: elapsedMinutes(open.startedAt) })
-        .where(eq(sessions.id, open.id))
+      await tx.update(sessions).set(stopFields(open)).where(eq(sessions.id, open.id))
     }
     const [created] = await tx
       .insert(sessions)
@@ -53,7 +73,9 @@ sessionRoutes.patch('/sessions/:id', async (c) => {
   const input = await body(
     c,
     z.object({
-      stop: z.boolean().optional(),
+      // pause: open-ended interruption. break: a Pomodoro break, which also completes a Pomodoro.
+      action: z.enum(['pause', 'break', 'resume', 'stop']).optional(),
+      pomodoro: z.boolean().optional(),
       unitId: z.number().int().nullish(),
       minutes: z.number().int().min(0).max(600).optional(),
       learned: z.string().max(4000).optional(),
@@ -63,16 +85,27 @@ sessionRoutes.patch('/sessions/:id', async (c) => {
   const [current] = await db.select().from(sessions).where(eq(sessions.id, id))
   if (!current) throw new HTTPException(404, { message: 'Session not found' })
 
-  const { stop, ...fields } = input
-  const stopping = stop && !current.endedAt
-  const [session] = await db
-    .update(sessions)
-    .set({
-      ...fields,
-      ...(stopping && { endedAt: new Date(), minutes: fields.minutes ?? elapsedMinutes(current.startedAt) }),
-    })
-    .where(eq(sessions.id, id))
-    .returning()
+  const { action, ...fields } = input
+  const open = !current.endedAt
+  let timer: Partial<SessionRow> = {}
+  if (open && (action === 'pause' || action === 'break') && !current.pausedAt) {
+    timer = {
+      pausedAt: new Date(),
+      pauseKind: action,
+      ...(action === 'break' && { pomodoros: current.pomodoros + 1 }),
+    }
+  } else if (open && action === 'resume' && current.pausedAt) {
+    timer = { pausedMs: pausedTotal(current, Date.now()), pausedAt: null, pauseKind: null }
+  } else if (open && action === 'stop') {
+    timer = stopFields(current)
+    if (fields.minutes !== undefined) timer.minutes = fields.minutes
+  }
+
+  // A repeated click (pause while paused, resume after stop) changes nothing; answer with the session as it is.
+  const changes = { ...fields, ...timer }
+  if (Object.keys(changes).length === 0) return c.json(current)
+
+  const [session] = await db.update(sessions).set(changes).where(eq(sessions.id, id)).returning()
   await markStarted(input.unitId)
   return c.json(session)
 })

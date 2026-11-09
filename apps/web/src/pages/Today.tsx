@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { CheckIcon } from '../components/icons'
 import { RecallCard } from '../components/RecallCard'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
-import { api, type Block, type Session, type Today, type TrackWithUnits } from '../lib/api'
+import { api, type Block, type Session, type TimerAction, type Today, type TrackWithUnits } from '../lib/api'
 import { addDays, formatClock, formatDay, formatMinutes, parseDate, useNow } from '../lib/date'
+import { FOCUS_MS, askToNotify, chime, notify, plannedRounds, timerState, type Phase } from '../lib/pomodoro'
 
 const NEW_UNIT = 'new'
 
@@ -64,7 +65,7 @@ function LogForm({ session, track }: { session: Session; track: TrackWithUnits }
     mutationFn: async () => {
       let unitId = unit === NEW_UNIT ? null : Number(unit)
       if (unit === NEW_UNIT && newUnit.trim()) unitId = (await api.addUnit(track.id, newUnit.trim())).id
-      return api.updateSession(session.id, { stop: true, unitId, learned, produced })
+      return api.updateSession(session.id, { action: 'stop', unitId, learned, produced })
     },
     onSuccess: invalidate,
   })
@@ -151,32 +152,169 @@ function LogForm({ session, track }: { session: Session; track: TrackWithUnits }
   )
 }
 
+const PHASE_COPY: Record<Phase, string> = {
+  focus: 'Focus',
+  break: 'Break',
+  paused: 'Paused',
+}
+
+// The running session: Pomodoro rounds with automatic breaks, or a plain stopwatch, plus pause and resume.
+function RunningCard({ session, track, block }: { session: Session; track?: TrackWithUnits; block?: Block }) {
+  const now = useNow(true)
+  const invalidate = useInvalidateDay()
+  const timer = useMutation({
+    mutationFn: (input: { action?: TimerAction; pomodoro?: boolean }) => api.updateSession(session.id, input),
+    onSuccess: invalidate,
+  })
+  const state = timerState(session, now)
+  const rounds = Math.max(plannedRounds(block?.minutes ?? 30), session.pomodoros + (state.phase === 'focus' ? 1 : 0))
+
+  // Switch between focus and break when a phase runs out. The key stops a slow request from firing twice.
+  const handled = useRef('')
+  const due =
+    !session.pomodoro || timer.isPending
+      ? null
+      : state.phase === 'focus' && state.focusLeftMs <= 0
+        ? 'break'
+        : state.phase === 'break' && state.breakLeftMs <= 0
+          ? 'resume'
+          : null
+  useEffect(() => {
+    const key = `${session.id}:${session.pomodoros}:${session.pausedAt}`
+    if (!due || handled.current === key) return
+    handled.current = key
+    chime()
+    if (due === 'break') notify('Break time', state.longBreak ? 'Take 15 minutes. You earned it.' : 'Stand up and stretch for 5 minutes.')
+    else notify('Back to focus', `${track?.name ?? 'Your session'}: next round starts now.`)
+    timer.mutate({ action: due })
+  }, [due, session.id, session.pomodoros, session.pausedAt, state.longBreak, timer, track?.name])
+
+  const clock =
+    state.phase === 'break'
+      ? state.breakLeftMs
+      : session.pomodoro && state.phase === 'focus'
+        ? state.focusLeftMs
+        : state.focusedMs
+  const phaseTotal = state.phase === 'break' ? state.breakMs : FOCUS_MS
+  const phaseDone = state.phase === 'break' ? state.breakMs - state.breakLeftMs : state.roundMs
+  const label =
+    state.phase === 'break'
+      ? state.longBreak
+        ? 'Long break · get some air'
+        : 'Short break · stand up, stretch, water'
+      : state.phase === 'paused'
+        ? 'Paused · study time is on hold'
+        : session.pomodoro
+          ? `Focus · round ${Math.min(session.pomodoros + 1, rounds)} of ${rounds}`
+          : 'Focus · stopwatch'
+
+  // Keep the countdown in the tab title, so it's visible from other tabs.
+  useEffect(() => {
+    document.title = `${formatClock(Math.max(0, Math.ceil(clock / 1000)))} · ${PHASE_COPY[state.phase]} · Study Log`
+  }, [clock, state.phase])
+  useEffect(() => () => void (document.title = 'Study Log'), [])
+
+  return (
+    <section
+      aria-label="Current session"
+      className={`flex flex-col gap-5 rounded-[18px] p-6 text-white transition-colors sm:p-7 ${
+        state.phase === 'break' ? 'bg-[#123b2f]' : 'bg-night'
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className="text-[13px] font-semibold tracking-wide text-[#a8b0bf] uppercase">
+            Now · {track?.name ?? 'Session'}
+          </span>
+          <h2 className="font-display text-[26px] leading-tight font-bold">
+            {session.unitTitle ?? track?.units.find((u) => u.id === session.unitId)?.title ?? 'In session'}
+          </h2>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span
+            role="timer"
+            className={`font-display text-[56px] leading-none font-bold tracking-tight tabular-nums ${
+              state.phase === 'paused' ? 'opacity-60' : ''
+            }`}
+          >
+            {formatClock(Math.max(0, Math.ceil(clock / 1000)))}
+          </span>
+          <span className="text-sm text-[#c6ccd6]">{label}</span>
+        </div>
+      </div>
+
+      {session.pomodoro && (
+        <div className="flex flex-col gap-2.5">
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+            <span
+              className={`block h-full transition-[width] duration-1000 ${state.phase === 'break' ? 'bg-[#6ee7b7]' : 'bg-white'}`}
+              style={{ width: `${Math.min(100, (Math.max(0, phaseDone) / phaseTotal) * 100)}%` }}
+            />
+          </div>
+          <div className="flex items-center gap-2 text-[13px] text-[#c6ccd6]">
+            <span className="flex gap-1.5" aria-label={`${session.pomodoros} of ${rounds} Pomodoros done`}>
+              {Array.from({ length: rounds }, (_, i) => (
+                <span
+                  key={i}
+                  className={`size-2.5 rounded-full ${i < session.pomodoros ? 'bg-white' : 'border border-white/40'}`}
+                />
+              ))}
+            </span>
+            <span>focused {formatMinutes(Math.floor(state.focusedMs / 60_000))}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2.5">
+        {state.phase === 'focus' ? (
+          <button
+            type="button"
+            disabled={timer.isPending}
+            onClick={() => timer.mutate({ action: 'pause' })}
+            className="btn border border-white/25 text-white hover:border-white/60"
+          >
+            Pause
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={timer.isPending}
+            onClick={() => timer.mutate({ action: 'resume' })}
+            className="btn bg-white text-ink hover:bg-[#e8eaee]"
+          >
+            {state.phase === 'break' ? 'Skip break' : 'Resume'}
+          </button>
+        )}
+        <label className="ml-auto flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-[#c6ccd6]">
+          <input
+            type="checkbox"
+            checked={session.pomodoro}
+            disabled={timer.isPending}
+            onChange={(e) => timer.mutate({ pomodoro: e.target.checked })}
+            className="size-4.5 accent-white"
+          />
+          Pomodoro timer
+        </label>
+      </div>
+      <ErrorNote error={timer.error} />
+
+      {track && <LogForm key={session.id} session={session} track={track} />}
+    </section>
+  )
+}
+
 function NowCard({ data, tracks, today }: { data: Today; tracks: TrackWithUnits[]; today: string }) {
   const running = data.running
-  const now = useNow(Boolean(running))
   const invalidate = useInvalidateDay()
-  const start = useMutation({ mutationFn: api.startSession, onSuccess: invalidate })
+  const start = useMutation({ mutationFn: api.startSession, onMutate: askToNotify, onSuccess: invalidate })
 
   if (running) {
-    const track = tracks.find((t) => t.id === running.trackId)
-    const elapsed = Math.max(0, Math.floor((now - Date.parse(running.startedAt)) / 1000))
     return (
-      <section aria-label="Current session" className="flex flex-col gap-5 rounded-[18px] bg-night p-6 text-white sm:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-3">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-[13px] font-semibold tracking-wide text-[#a8b0bf] uppercase">
-              Now · {track?.name ?? 'Session'}
-            </span>
-            <h2 className="font-display text-[26px] leading-tight font-bold">
-              {running.unitTitle ?? track?.units.find((u) => u.id === running.unitId)?.title ?? 'In session'}
-            </h2>
-          </div>
-          <span className="font-display text-[56px] leading-none font-bold tracking-tight tabular-nums" role="timer">
-            {formatClock(elapsed)}
-          </span>
-        </div>
-        {track && <LogForm key={running.id} session={running} track={track} />}
-      </section>
+      <RunningCard
+        session={running}
+        track={tracks.find((t) => t.id === running.trackId)}
+        block={data.blocks.find((b) => b.id === running.blockId)}
+      />
     )
   }
 
@@ -219,7 +357,7 @@ function SessionSummary({ session }: { session: Session }) {
 
 function PlanRow({ block, today, running }: { block: Block; today: string; running: Session | null }) {
   const invalidate = useInvalidateDay()
-  const start = useMutation({ mutationFn: api.startSession, onSuccess: invalidate })
+  const start = useMutation({ mutationFn: api.startSession, onMutate: askToNotify, onSuccess: invalidate })
   const isRunning = block.sessions.some((s) => s.id === running?.id)
   const done = block.sessions.filter((s) => s.endedAt)
   const minutes = done.reduce((sum, s) => sum + s.minutes, 0)
@@ -259,7 +397,7 @@ function PlanRow({ block, today, running }: { block: Block; today: string; runni
 function ExtraSession({ tracks, today }: { tracks: TrackWithUnits[]; today: string }) {
   const [trackId, setTrackId] = useState(String(tracks[0]?.id ?? ''))
   const invalidate = useInvalidateDay()
-  const start = useMutation({ mutationFn: api.startSession, onSuccess: invalidate })
+  const start = useMutation({ mutationFn: api.startSession, onMutate: askToNotify, onSuccess: invalidate })
 
   return (
     <form
@@ -287,6 +425,8 @@ function ExtraSession({ tracks, today }: { tracks: TrackWithUnits[]; today: stri
 }
 
 function headline(data: Today) {
+  if (data.running?.pauseKind === 'break') return 'On a break. Step away for a bit.'
+  if (data.running?.pausedAt) return 'Paused. Pick it back up when ready.'
   if (data.running) return 'In session. Keep going.'
   if (data.blocks.length && data.blocks.every((b) => b.sessions.length)) return 'Plan done. Time to wrap up.'
   if (data.dayMinutes) return `${formatMinutes(data.dayMinutes)} in. Keep going.`

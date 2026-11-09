@@ -23,11 +23,18 @@ export type Session = {
   blockId: number | null
   startedAt: string
   endedAt: string | null
+  pausedAt: string | null
+  pauseKind: 'pause' | 'break' | null
+  pausedMs: number
+  pomodoro: boolean
+  pomodoros: number
   minutes: number
   learned: string
   produced: string
   unitTitle?: string | null
 }
+
+export type TimerAction = 'pause' | 'break' | 'resume' | 'stop'
 
 export type Block = { id: number; weekday: number; startTime: string; minutes: number; track: Track; sessions: Session[] }
 
@@ -124,7 +131,14 @@ export const api = {
     request<Session>('POST', '/sessions', input),
   updateSession: (
     id: number,
-    input: { stop?: boolean; unitId?: number | null; learned?: string; produced?: string; minutes?: number },
+    input: {
+      action?: TimerAction
+      pomodoro?: boolean
+      unitId?: number | null
+      learned?: string
+      produced?: string
+      minutes?: number
+    },
   ) => request<Session>('PATCH', `/sessions/${id}`, input),
   deleteSession: (id: number) => request<void>('DELETE', `/sessions/${id}`),
 
