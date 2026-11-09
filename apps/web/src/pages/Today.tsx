@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { JSONContent } from '@tiptap/react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { CheckIcon } from '../components/icons'
 import { NoteCard } from '../components/NoteCard'
 import { NoteEditor } from '../components/NoteEditor'
 import { RecallCard } from '../components/RecallCard'
+import { RichTextEditor } from '../components/RichText'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
 import { api, type Block, type Session, type TimerAction, type Today, type TrackWithUnits } from '../lib/api'
 import { addDays, formatClock, formatDay, formatMinutes, formatTime, parseDate, partOfDay, useNow } from '../lib/date'
@@ -61,6 +63,7 @@ function LogForm({ session, track }: { session: Session; track: TrackWithUnits }
   const [unit, setUnit] = useState(suggested ? String(suggested) : NEW_UNIT)
   const [newUnit, setNewUnit] = useState('')
   const [learned, setLearned] = useState(session.learned)
+  const [learnedBody, setLearnedBody] = useState<JSONContent | null>(session.learnedBody)
   const [produced, setProduced] = useState(session.produced)
   const invalidate = useInvalidateDay()
 
@@ -68,7 +71,7 @@ function LogForm({ session, track }: { session: Session; track: TrackWithUnits }
     mutationFn: async () => {
       let unitId = unit === NEW_UNIT ? null : Number(unit)
       if (unit === NEW_UNIT && newUnit.trim()) unitId = (await api.addUnit(track.id, newUnit.trim())).id
-      return api.updateSession(session.id, { action: 'stop', unitId, learned, produced })
+      return api.updateSession(session.id, { action: 'stop', unitId, learned, learnedBody, produced })
     },
     onSuccess: invalidate,
   })
@@ -113,16 +116,16 @@ function LogForm({ session, track }: { session: Session; track: TrackWithUnits }
         </div>
       )}
       <div className="flex flex-col gap-2">
-        <label htmlFor="log-learned" className="text-sm font-semibold text-[#c6ccd6]">
-          What clicked
-        </label>
-        <textarea
-          id="log-learned"
-          rows={3}
-          value={learned}
-          onChange={(e) => setLearned(e.target.value)}
-          placeholder="Explain it in your own words"
-          className={field}
+        <p className="text-sm font-semibold text-[#c6ccd6]">What clicked</p>
+        {/* Rich text, like the round notes: headings, lists, checklists, tables and code for commands. */}
+        <RichTextEditor
+          initial={session.learnedBody}
+          placeholder="What clicked this session? Explain it in your own words"
+          minHeight="min-h-32"
+          onChange={(body, text) => {
+            setLearnedBody(body)
+            setLearned(text)
+          }}
         />
       </div>
       <div className="flex flex-col gap-2">

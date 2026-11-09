@@ -49,7 +49,8 @@ sessionRoutes.post('/sessions', async (c) => {
       unitId: z.number().int().nullish(),
       pomodoro: z.boolean().optional(),
       minutes: z.number().int().min(1).max(600).optional(),
-      learned: z.string().max(4000).optional(),
+      learned: z.string().max(20_000).optional(),
+      learnedBody: z.unknown().optional(),
       produced: z.string().max(2000).optional(),
     }),
   )
@@ -78,7 +79,8 @@ sessionRoutes.patch('/sessions/:id', async (c) => {
       pomodoro: z.boolean().optional(),
       unitId: z.number().int().nullish(),
       minutes: z.number().int().min(0).max(600).optional(),
-      learned: z.string().max(4000).optional(),
+      learned: z.string().max(20_000).optional(),
+      learnedBody: z.unknown().optional(),
       produced: z.string().max(2000).optional(),
     }),
   )

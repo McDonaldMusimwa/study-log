@@ -56,7 +56,7 @@ dayRoutes.put('/days/:date', async (c) => {
   const input = await body(
     c,
     z.object({
-      learned: z.string().max(4000),
+      learned: z.string().max(20_000),
       applied: z.string().max(4000),
       next: z.string().max(1000),
       commits: z.array(commitSchema).max(50),

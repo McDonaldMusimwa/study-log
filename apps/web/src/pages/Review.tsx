@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { JSONContent } from '@tiptap/react'
 import { useState } from 'react'
 import { TrashIcon } from '../components/icons'
 import { RecallCard } from '../components/RecallCard'
+import { RichTextEditor } from '../components/RichText'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
 import { api } from '../lib/api'
 import { formatDay } from '../lib/date'
@@ -11,12 +13,18 @@ function AddForm({ today }: { today: string }) {
   const [trackId, setTrackId] = useState('')
   const [prompt, setPrompt] = useState('')
   const [answer, setAnswer] = useState('')
+  const [answerBody, setAnswerBody] = useState<JSONContent | null>(null)
+  // Bumped after adding a card, so the editor starts empty for the next one.
+  const [editorKey, setEditorKey] = useState(0)
   const queryClient = useQueryClient()
   const add = useMutation({
-    mutationFn: () => api.addReview({ date: today, trackId: Number(trackId || tracks?.[0]?.id), prompt, answer }),
+    mutationFn: () =>
+      api.addReview({ date: today, trackId: Number(trackId || tracks?.[0]?.id), prompt, answer, answerBody }),
     onSuccess: () => {
       setPrompt('')
       setAnswer('')
+      setAnswerBody(null)
+      setEditorKey((k) => k + 1)
       void queryClient.invalidateQueries({ queryKey: ['reviews'] })
       void queryClient.invalidateQueries({ queryKey: ['today'] })
     },
@@ -57,16 +65,16 @@ function AddForm({ today }: { today: string }) {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="review-answer" className="text-sm font-semibold text-soft">
-          Your note
-        </label>
-        <textarea
-          id="review-answer"
-          rows={4}
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
+        <p className="text-sm font-semibold text-soft">Your note</p>
+        <RichTextEditor
+          key={editorKey}
+          initial={null}
           placeholder="The answer in your own words. You'll compare against it later."
-          className="field resize-y"
+          minHeight="min-h-36"
+          onChange={(body, text) => {
+            setAnswerBody(body)
+            setAnswer(text)
+          }}
         />
       </div>
       <button type="submit" disabled={add.isPending || !prompt.trim() || !tracks} className="btn btn-primary self-start">

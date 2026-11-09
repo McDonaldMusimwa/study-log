@@ -66,7 +66,9 @@ export const sessions = sqliteTable('sessions', {
   pomodoro: integer('pomodoro', { mode: 'boolean' }).notNull().default(true),
   pomodoros: integer('pomodoros').notNull().default(0),
   minutes: integer('minutes').notNull().default(0),
+  // "What clicked": plain text for summaries and post drafts, plus the rich-text original (TipTap JSON).
   learned: text('learned').notNull().default(''),
+  learnedBody: text('learned_body', { mode: 'json' }).$type<unknown>(),
   produced: text('produced').notNull().default(''),
 })
 
@@ -77,7 +79,9 @@ export const reviewItems = sqliteTable('review_items', {
     .notNull()
     .references(() => tracks.id),
   prompt: text('prompt').notNull(),
+  // The note to check a recall against: plain text plus the rich-text original (TipTap JSON).
   answer: text('answer').notNull().default(''),
+  answerBody: text('answer_body', { mode: 'json' }).$type<unknown>(),
   step: integer('step').notNull().default(0),
   dueOn: text('due_on').notNull(),
   lastResult: text('last_result', { enum: ['again', 'good'] }),

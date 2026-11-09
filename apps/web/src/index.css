@@ -59,11 +59,62 @@
     & > * + * {
       @apply mt-2.5;
     }
+    & h1 {
+      @apply font-display text-2xl leading-tight font-bold;
+    }
     & h2 {
       @apply font-display text-lg font-bold;
     }
+    & h3 {
+      @apply text-base font-bold;
+    }
     & ul {
       @apply list-disc pl-5;
+    }
+    & mark {
+      @apply rounded-sm bg-[#fde68a] px-0.5 text-ink;
+    }
+    & hr {
+      @apply my-4 border-line-strong;
+    }
+
+    /* Checklists: a checkbox beside each item; ticked items fade. */
+    & ul[data-type='taskList'] {
+      @apply list-none pl-0;
+
+      & li {
+        @apply flex items-start gap-2;
+      }
+      & li > label {
+        @apply mt-1 shrink-0;
+      }
+      & li > label input {
+        @apply size-4 cursor-pointer accent-accent;
+      }
+      & li > div {
+        @apply min-w-0 flex-1;
+      }
+      & li[data-checked='true'] > div {
+        @apply text-muted line-through;
+      }
+    }
+
+    /* Tables scroll sideways on narrow screens instead of squashing. */
+    & .tableWrapper {
+      @apply overflow-x-auto;
+    }
+    & table {
+      @apply w-full border-collapse text-sm;
+    }
+    & th,
+    & td {
+      @apply relative min-w-24 border border-line-strong px-2.5 py-1.5 text-left align-top;
+    }
+    & th {
+      @apply bg-bg font-semibold;
+    }
+    & .selectedCell::after {
+      @apply pointer-events-none absolute inset-0 bg-accent/10 content-[''];
     }
     & ol {
       @apply list-decimal pl-5;

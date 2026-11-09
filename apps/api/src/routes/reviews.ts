@@ -41,7 +41,8 @@ reviewRoutes.post('/reviews', async (c) => {
       date: z.string().refine(isDate),
       trackId: z.number().int(),
       prompt: z.string().trim().min(1).max(500),
-      answer: z.string().max(4000).default(''),
+      answer: z.string().max(20_000).default(''),
+      answerBody: z.unknown().optional(),
     }),
   )
   const { date, ...fields } = input

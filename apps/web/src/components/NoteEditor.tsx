@@ -79,6 +79,7 @@ export function NoteEditor({ title, note, target, onClose }: Props) {
           <RichTextEditor
             initial={note?.body ?? null}
             placeholder="What did you grasp this round? Explain it in your own words…"
+            autoFocus
             onChange={(json, plain) => {
               setBody(json)
               setText(plain)

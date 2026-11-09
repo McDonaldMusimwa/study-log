@@ -32,6 +32,7 @@ export type Session = {
   pomodoros: number
   minutes: number
   learned: string
+  learnedBody: JSONContent | null
   produced: string
   unitTitle?: string | null
 }
@@ -88,6 +89,7 @@ export type ReviewItem = {
   trackId: number
   prompt: string
   answer: string
+  answerBody: JSONContent | null
   step: number
   dueOn: string
   track: { name: string; color: string }
@@ -169,6 +171,7 @@ export const api = {
       pomodoro?: boolean
       unitId?: number | null
       learned?: string
+      learnedBody?: JSONContent | null
       produced?: string
       minutes?: number
     },
@@ -189,7 +192,7 @@ export const api = {
     ),
 
   reviews: (date: string) => request<{ due: ReviewItem[]; upcoming: ReviewItem[] }>('GET', `/reviews?date=${date}`),
-  addReview: (input: { date: string; trackId: number; prompt: string; answer: string }) =>
+  addReview: (input: { date: string; trackId: number; prompt: string; answer: string; answerBody: JSONContent | null }) =>
     request<ReviewItem>('POST', '/reviews', input),
   gradeReview: (id: number, result: 'again' | 'good', date: string) =>
     request<ReviewItem>('POST', `/reviews/${id}/grade`, { result, date }),

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api, type ReviewItem } from '../lib/api'
+import { RichTextView } from './RichText'
 import { ErrorNote, Swatch } from './ui'
 
 // One spaced-repetition prompt: say the answer out loud, reveal the note, then grade yourself.
@@ -29,9 +30,16 @@ export function RecallCard({ item, today, position }: { item: ReviewItem; today:
       </div>
       <p className="font-display text-[22px] leading-snug font-bold">{item.prompt}</p>
       {revealed ? (
-        <p className="rounded-xl bg-field px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line text-soft">
-          {item.answer || 'No note saved. Grade it on how well you explained it.'}
-        </p>
+        item.answerBody ? (
+          <div className="rounded-xl bg-field px-4 py-3">
+            <RichTextView content={item.answerBody} />
+          </div>
+        ) : (
+          // Cards written before notes became rich text.
+          <p className="rounded-xl bg-field px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line text-soft">
+            {item.answer || 'No note saved. Grade it on how well you explained it.'}
+          </p>
+        )
       ) : (
         <>
           <p className="text-sm text-muted">Say it out loud first, then reveal your note.</p>
