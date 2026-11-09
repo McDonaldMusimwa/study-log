@@ -117,7 +117,7 @@ export function Review({ today }: { today: string }) {
                       type="button"
                       aria-label={`Delete "${item.prompt}"`}
                       onClick={() => remove.mutate(item.id)}
-                      className="grid size-9 cursor-pointer place-items-center rounded-lg text-muted hover:bg-warn-soft hover:text-warn"
+                      className="grid size-11 cursor-pointer place-items-center rounded-lg text-muted hover:bg-warn-soft hover:text-warn"
                     >
                       <TrashIcon className="size-4" />
                     </button>

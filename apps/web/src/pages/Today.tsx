@@ -6,6 +6,7 @@ import { RecallCard } from '../components/RecallCard'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
 import { api, type Block, type Session, type TimerAction, type Today, type TrackWithUnits } from '../lib/api'
 import { addDays, formatClock, formatDay, formatMinutes, formatTime, parseDate, partOfDay, useNow } from '../lib/date'
+import { useWakeLock } from '../lib/wakeLock'
 import { FOCUS_MS, askToNotify, chime, notify, plannedRounds, timerState, type Phase } from '../lib/pomodoro'
 
 const NEW_UNIT = 'new'
@@ -167,6 +168,7 @@ function RunningCard({ session, track, block }: { session: Session; track?: Trac
     onSuccess: invalidate,
   })
   const state = timerState(session, now)
+  useWakeLock(state.phase !== 'paused')
   const rounds = Math.max(plannedRounds(block?.minutes ?? 30), session.pomodoros + (state.phase === 'focus' ? 1 : 0))
 
   // Switch between focus and break when a phase runs out. The key stops a slow request from firing twice.
@@ -230,7 +232,7 @@ function RunningCard({ session, track, block }: { session: Session; track?: Trac
             {session.unitTitle ?? track?.units.find((u) => u.id === session.unitId)?.title ?? 'In session'}
           </h2>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-start gap-1 sm:items-end">
           <span
             role="timer"
             className={`font-display text-[56px] leading-none font-bold tracking-tight tabular-nums ${
@@ -334,7 +336,7 @@ function NowCard({ data, tracks, today }: { data: Today; tracks: TrackWithUnits[
           type="button"
           disabled={start.isPending}
           onClick={() => start.mutate({ date: today, trackId: next.track.id, blockId: next.id })}
-          className="btn bg-white text-ink hover:bg-[#e8eaee]"
+          className="btn w-full bg-white text-ink hover:bg-[#e8eaee] sm:w-auto"
         >
           Start {next.track.name}
         </button>
@@ -388,7 +390,7 @@ function PlanRow({ block, today, running }: { block: Block; today: string; runni
           type="button"
           disabled={start.isPending}
           onClick={() => start.mutate({ date: today, trackId: block.track.id, blockId: block.id })}
-          className="btn min-h-9 border border-line-strong px-3 py-1.5 text-[13px] text-soft hover:border-accent hover:text-accent"
+          className="btn min-h-11 border border-line-strong px-3.5 py-1.5 text-[13px] text-soft hover:border-accent hover:text-accent"
         >
           Start
         </button>

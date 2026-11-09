@@ -35,6 +35,20 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent;
   }
+
+  /* iOS zooms the page into any field with text under 16px, so phones get 16px everywhere. */
+  @media (width < 40rem) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* No grey flash when tapping buttons and links on mobile. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @utility card {

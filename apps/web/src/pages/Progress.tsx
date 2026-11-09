@@ -149,7 +149,7 @@ function TrackCard({ stats, track }: { stats: TrackStats; track?: TrackWithUnits
                 id={`unit-${unit.id}`}
                 value={unit.status}
                 onChange={(e) => setStatus.mutate({ id: unit.id, status: e.target.value as UnitStatus })}
-                className="rounded-lg border border-line-strong bg-field px-2 py-1.5 text-[13px]"
+                className="min-h-11 rounded-lg border border-line-strong bg-field px-2.5 text-[13px]"
               >
                 {Object.entries(STATUS_LABEL).map(([value, label]) => (
                   <option key={value} value={value}>

@@ -154,7 +154,7 @@ function WrapUpForm({ date, detail }: { date: string; detail: DayDetail }) {
                 type="button"
                 aria-pressed={areas.includes(area)}
                 onClick={() => toggleArea(area)}
-                className={`min-h-9 cursor-pointer rounded-full px-3.5 text-[13px] font-semibold ${
+                className={`min-h-11 cursor-pointer rounded-full px-3.5 text-[13px] font-semibold ${
                   areas.includes(area) ? 'bg-accent text-white' : 'border border-line-strong text-soft hover:border-accent'
                 }`}
               >
@@ -219,7 +219,7 @@ function WrapUpForm({ date, detail }: { date: string; detail: DayDetail }) {
                 aria-pressed={tone === t.value}
                 disabled={generate.isPending}
                 onClick={() => draftWith(t.value)}
-                className={`min-h-9 cursor-pointer rounded-lg px-3 text-[13px] font-semibold ${
+                className={`min-h-11 cursor-pointer rounded-lg px-3 text-[13px] font-semibold ${
                   tone === t.value ? 'bg-accent-soft text-accent' : 'text-soft hover:bg-bg'
                 }`}
               >
