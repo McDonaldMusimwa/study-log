@@ -10,6 +10,10 @@ if (env.onNetlify && env.databaseUrl.startsWith('file:')) {
   console.error('DATABASE_URL is not set to a Turso database. Add DATABASE_URL and DATABASE_AUTH_TOKEN in Netlify.')
   process.exit(1)
 }
+if (env.databaseUrl.startsWith('libsql:') && !env.databaseAuthToken) {
+  console.error('DATABASE_AUTH_TOKEN is not set, so Turso will refuse the connection. Check the variable name has both underscores.')
+  process.exit(1)
+}
 
 // Works from src/db (tsx) and dist/db (built): both sit two levels below the drizzle folder.
 const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle')
