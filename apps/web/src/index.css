@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+/* Study Desk: a light, calm planner. Track colors come from the database. */
+@theme {
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-field: #f9fafb;
+  --color-line: #e3e6eb;
+  --color-line-strong: #d5dae1;
+  --color-ink: #16181d;
+  --color-soft: #3d4250;
+  --color-muted: #5b6170;
+  --color-accent: #4338ca;
+  --color-accent-hover: #3730a3;
+  --color-accent-soft: #eef0ff;
+  --color-ok: #047857;
+  --color-ok-soft: #e7f6ef;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf3e7;
+  --color-night: #16181d;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', ui-sans-serif, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+  }
+
+  a {
+    @apply text-accent hover:text-accent-hover;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}
+
+@utility card {
+  @apply rounded-[18px] border border-line bg-surface;
+}
+
+@utility field {
+  @apply w-full rounded-xl border border-line-strong bg-field px-3.5 py-3 text-[15px] leading-relaxed text-ink placeholder:text-muted/80;
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[10px] px-4 py-2.5 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply bg-accent text-white hover:bg-accent-hover;
+}
+
+@utility btn-ghost {
+  @apply border border-line-strong bg-surface text-ink hover:border-accent hover:text-accent;
+}
