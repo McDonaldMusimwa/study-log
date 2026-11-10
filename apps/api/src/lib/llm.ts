@@ -38,7 +38,10 @@ async function groq({ system, prompt }: Request) {
           { role: 'user', content: prompt },
         ],
         temperature: 0.7,
-        max_completion_tokens: 1500,
+        // Reasoning models (gpt-oss) spend tokens thinking before they write, so leave room for both,
+        // and keep the thinking light: a LinkedIn post doesn't need much and it keeps replies fast.
+        max_completion_tokens: 4000,
+        ...(env.groqModel.startsWith('openai/gpt-oss') && { reasoning_effort: 'low' }),
       }),
       // Stays inside Netlify's 60-second function limit.
       signal: AbortSignal.timeout(45_000),
@@ -49,7 +52,12 @@ async function groq({ system, prompt }: Request) {
 
   if (res.status === 401) throw new LlmError('GROQ_API_KEY was rejected. Check the key in your settings.', 401)
   if (res.status === 429) throw new LlmError("Groq's free limit is used up for now. Try again in a minute.", 429)
-  if (!res.ok) throw new LlmError(`Groq returned an error (${res.status}).`, 502)
+  if (!res.ok) {
+    // Groq explains itself, e.g. "The model `x` does not exist" when a model has been retired.
+    const detail = ((await res.json().catch(() => ({}))) as { error?: { message?: string; code?: string } }).error
+    const hint = detail?.code === 'model_not_found' ? ` Set GROQ_MODEL to a model your Groq account lists.` : ''
+    throw new LlmError(`Groq error ${res.status}: ${detail?.message ?? 'no details'}${hint}`, 502)
+  }
 
   const data = (await res.json()) as ChatResponse
   const text = data.choices?.[0]?.message?.content?.trim()
@@ -91,7 +99,8 @@ export function cleanPost(text: string) {
   out = out.replace(/^```[a-z]*\n?|\n?```$/g, '').trim()
   out = out.replace(/^(here(?:'|’)?s|here is|sure|certainly|below is)[^\n]*:\s*\n+/i, '')
   if (/^["“].*["”]$/s.test(out)) out = out.slice(1, -1)
-  out = out.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1')
+  // LinkedIn shows markdown literally, so drop bold and inline-code markers.
+  out = out.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/`([^`\n]+)`/g, '$1')
   return out.trim()
 }
 

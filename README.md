@@ -95,8 +95,8 @@ Migrations in `apps/api/drizzle/` apply when the API container starts, and on ev
 | `DATABASE_URL` | `file:...` for a local SQLite file, or a Turso `libsql://` URL |
 | `DATABASE_AUTH_TOKEN` | Turso token (not needed for a local file) |
 | `APP_PASSWORD` | Optional. Turns on the login screen. |
-| `GROQ_API_KEY` | Free AI (Groq, Llama 3.3 70B by default) that drafts the post and powers **Polish with AI**. Without it, the wrap-up fills in a template. |
-| `GROQ_MODEL` | Optional: another model Groq serves. |
+| `GROQ_API_KEY` | Free AI (Groq, OpenAI's open-weight gpt-oss-120b by default) that drafts the post and powers **Polish with AI**. Without it, the wrap-up fills in a template. |
+| `GROQ_MODEL` | Optional: another chat model your Groq account lists (Groq retires models from time to time). |
 | `ANTHROPIC_API_KEY` | Optional and paid: Claude instead of Groq, used only when `GROQ_API_KEY` is empty. |
 | `GITHUB_TOKEN` | Optional for a public repo. A read-only fine-grained token avoids GitHub's rate limit of 60 requests an hour. |
 | `GITHUB_REPO` | The repo whose commits appear on the wrap-up screen (default `McDonaldMusimwa/Aitrainer`). |
