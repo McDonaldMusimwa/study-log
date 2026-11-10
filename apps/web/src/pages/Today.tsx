@@ -8,8 +8,9 @@ import { NoteEditor } from '../components/NoteEditor'
 import { RecallCard } from '../components/RecallCard'
 import { RichTextEditor } from '../components/RichText'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
+import { WeekStrip } from '../components/WeekStrip'
 import { api, type Block, type Session, type TimerAction, type Today, type TrackWithUnits } from '../lib/api'
-import { addDays, formatClock, formatDay, formatMinutes, formatTime, parseDate, partOfDay, useNow } from '../lib/date'
+import { formatClock, formatDay, formatMinutes, formatTime, partOfDay, useNow } from '../lib/date'
 import { useWakeLock } from '../lib/wakeLock'
 import { FOCUS_MS, askToNotify, chime, notify, plannedRounds, timerState, type Phase } from '../lib/pomodoro'
 
@@ -20,40 +21,6 @@ function useInvalidateDay() {
   return () => {
     for (const key of ['today', 'tracks', 'day', 'progress']) void queryClient.invalidateQueries({ queryKey: [key] })
   }
-}
-
-function WeekStrip({ data, today }: { data: Today; today: string }) {
-  return (
-    <ol
-      aria-label="This week"
-      className="grid min-w-[min(100%,420px)] grid-cols-7 gap-2 text-center text-xs font-semibold text-muted"
-    >
-      {Array.from({ length: 7 }, (_, i) => {
-        const date = addDays(data.weekStart, i)
-        const studied = data.weekStudied.includes(date)
-        const isToday = date === today
-        return (
-          <li key={date} className="flex flex-col items-center gap-1.5">
-            {formatDay(date, { weekday: 'short' })}
-            <span
-              className={`grid size-9 place-items-center rounded-[10px] text-[13px] ${
-                isToday
-                  ? 'border-2 border-accent text-accent'
-                  : studied
-                    ? 'bg-accent text-white'
-                    : i >= 5
-                      ? 'border border-dashed border-line-strong bg-surface'
-                      : 'border border-line bg-surface'
-              }`}
-            >
-              {parseDate(date).getDate()}
-              <span className="sr-only">{studied ? ' (studied)' : ''}</span>
-            </span>
-          </li>
-        )
-      })}
-    </ol>
-  )
 }
 
 // Logging form for the running session: which unit, what clicked, what you made. One field per row.
@@ -504,7 +471,7 @@ export function TodayPage({ today }: { today: string }) {
       <PageHeading
         eyebrow={`${formatDay(today)} · Day ${data.dayNumber}`}
         title={headline(data)}
-        aside={<WeekStrip data={data} today={today} />}
+        aside={<WeekStrip weekStart={data.weekStart} weekStudied={data.weekStudied} today={today} selected={today} />}
       />
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-5">

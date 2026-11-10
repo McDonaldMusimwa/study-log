@@ -306,7 +306,12 @@ export function WrapUp({ today }: { today: string }) {
         }`}
         title={date === today ? 'Close the day' : 'Wrap-up'}
         aside={
-          <nav aria-label="Other days" className="flex gap-2">
+          <nav aria-label="Other days" className="flex flex-wrap gap-2">
+            {date < today && (
+              <Link to={`/day/${date}`} className="btn btn-ghost">
+                Day review
+              </Link>
+            )}
             <Link to={`/wrap-up/${addDays(date, -1)}`} className="btn btn-ghost">
               ← Previous day
             </Link>

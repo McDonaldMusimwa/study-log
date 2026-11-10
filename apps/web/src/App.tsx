@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes } from 'react-router'
 import { BookIcon, CardsIcon, ChartIcon, NoteIcon, PenIcon, PostIcon, SunIcon } from './components/icons'
 import { api } from './lib/api'
 import { useToday } from './lib/date'
+import { DayPage } from './pages/Day'
 import { Login } from './pages/Login'
 import { Notes } from './pages/Notes'
 import { Posts } from './pages/Posts'
@@ -130,6 +131,7 @@ export default function App() {
       <main className="mx-auto flex max-w-310 flex-col gap-6 px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-8 sm:pb-16">
         <Routes>
           <Route path="/" element={<TodayPage today={today} />} />
+          <Route path="/day/:date" element={<DayPage today={today} />} />
           <Route path="/wrap-up" element={<WrapUp today={today} />} />
           <Route path="/wrap-up/:date" element={<WrapUp today={today} />} />
           <Route path="/progress" element={<ProgressPage today={today} />} />
