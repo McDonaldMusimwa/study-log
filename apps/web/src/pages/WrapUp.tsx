@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { NoteCard } from '../components/NoteCard'
 import { ErrorNote, Loading, PageHeading, Swatch } from '../components/ui'
+import { WeekStrip, wrapUpPath } from '../components/WeekStrip'
 import { api, type Commit, type DayDetail, type Note, type Tone } from '../lib/api'
-import { addDays, dayBounds, formatDay, formatMinutes } from '../lib/date'
+import { addDays, dayBounds, formatDay, formatMinutes, isDateString, localDate } from '../lib/date'
 
 const AREAS = ['backend', 'agent', 'postgres', 'docker / ci', 'web', 'mobile']
 const TONES: { value: Tone; label: string }[] = [
@@ -128,7 +129,7 @@ function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; 
       >
         <div className="flex flex-col gap-2">
           <label htmlFor="wrap-learned" className="font-display text-[19px] font-bold">
-            1. What clicked today?
+            1. What clicked {date === localDate() ? 'today' : 'that day'}?
           </label>
           <textarea
             id="wrap-learned"
@@ -294,9 +295,17 @@ function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; 
 }
 
 export function WrapUp({ today }: { today: string }) {
-  const date = useParams().date ?? today
+  const param = useParams().date
+  // A bad or future date in the address falls back to today.
+  const date = param && isDateString(param) && param <= today ? param : today
+  const yesterday = addDays(today, -1)
   const { data, error } = useQuery({ queryKey: ['day', date], queryFn: () => api.day(date) })
   const notes = useQuery({ queryKey: ['notes', { date }], queryFn: () => api.notes({ date }) })
+  const week = useQuery({ queryKey: ['today', date], queryFn: () => api.today(date) })
+  // On today's wrap-up, point out a yesterday that was studied but never got a post.
+  const prev = useQuery({ queryKey: ['day', yesterday], queryFn: () => api.day(yesterday), enabled: date === today })
+  const yesterdayPending =
+    date === today && prev.data && prev.data.sessions.length > 0 && !prev.data.day.postDraft && !prev.data.day.postedAt
 
   return (
     <>
@@ -304,25 +313,42 @@ export function WrapUp({ today }: { today: string }) {
         eyebrow={`${formatDay(date)}${data ? ` · Day ${data.dayNumber}` : ''}${
           data ? ` · ${formatMinutes(data.sessions.reduce((sum, s) => sum + s.minutes, 0))} studied` : ''
         }`}
-        title={date === today ? 'Close the day' : 'Wrap-up'}
+        title={
+          date === today
+            ? 'Close the day'
+            : date === yesterday
+              ? 'Wrap up yesterday'
+              : `Wrap up ${formatDay(date, { weekday: 'long', day: 'numeric', month: 'short' })}`
+        }
         aside={
-          <nav aria-label="Other days" className="flex flex-wrap gap-2">
-            {date < today && (
-              <Link to={`/day/${date}`} className="btn btn-ghost">
-                Day review
-              </Link>
-            )}
-            <Link to={`/wrap-up/${addDays(date, -1)}`} className="btn btn-ghost">
-              ← Previous day
-            </Link>
-            {date < today && (
-              <Link to={date === addDays(today, -1) ? '/wrap-up' : `/wrap-up/${addDays(date, 1)}`} className="btn btn-ghost">
-                Next day →
-              </Link>
-            )}
-          </nav>
+          week.data && (
+            <WeekStrip
+              weekStart={week.data.weekStart}
+              weekStudied={week.data.weekStudied}
+              today={today}
+              selected={date}
+              pathFor={wrapUpPath}
+            />
+          )
         }
       />
+      {yesterdayPending && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] bg-accent-soft px-5 py-4">
+          <p className="text-[15px] text-soft">
+            <strong className="text-ink">Yesterday</strong> ({formatDay(yesterday, { weekday: 'short', day: 'numeric', month: 'short' })})
+            has {prev.data.sessions.length} {prev.data.sessions.length === 1 ? 'session' : 'sessions'} logged and no
+            LinkedIn post yet.
+          </p>
+          <Link to={wrapUpPath(yesterday, today)} className="btn btn-primary hover:text-white">
+            Wrap up yesterday
+          </Link>
+        </div>
+      )}
+      {date < today && (
+        <p className="-mt-2 text-sm text-muted">
+          Wrapping up a past day. <Link to={`/day/${date}`}>See that day's review</Link> or pick another date above.
+        </p>
+      )}
       <ErrorNote error={error} />
       {data && notes.data ? (
         <WrapUpForm key={date} date={date} detail={data} notes={notes.data} />
