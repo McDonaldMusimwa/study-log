@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { asc, desc, eq, ne } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
@@ -6,9 +5,10 @@ import { z } from 'zod'
 import { db } from '../db/client.js'
 import { days, notes, sessions, tracks, units } from '../db/schema.js'
 import { dayNumber, studiedDates } from '../lib/activity.js'
-import { DraftRefusedError, draftPost } from '../lib/draft.js'
+import { draftPost, polishPost } from '../lib/draft.js'
 import { commitsBetween } from '../lib/github.js'
 import { body, dateParam } from '../lib/http.js'
+import { LlmError, llmProvider } from '../lib/llm.js'
 
 export const dayRoutes = new Hono()
 
@@ -87,29 +87,54 @@ dayRoutes.post('/days/:date/draft', async (c) => {
       .orderBy(asc(notes.createdAt)),
   ])
 
-  let draft
-  try {
-    draft = await draftPost({
+  const draft = await withAi(() =>
+    draftPost({
       ...day,
       dayNumber: n,
       tone,
       sessions: daySessions,
       notes: dayNotes.map((note) => ({ ...note, hasDrawing: Boolean(note.hasDrawing) })),
-    })
-  } catch (error) {
-    if (error instanceof DraftRefusedError) throw new HTTPException(422, { message: error.message })
-    if (error instanceof Anthropic.AuthenticationError) throw new HTTPException(502, { message: 'ANTHROPIC_API_KEY was rejected' })
-    if (error instanceof Anthropic.RateLimitError) throw new HTTPException(429, { message: 'Claude is rate limited; try again shortly' })
-    if (error instanceof Anthropic.APIError) throw new HTTPException(502, { message: `Claude API error ${error.status}` })
-    throw error
-  }
-
-  await db
-    .insert(days)
-    .values({ date, postDraft: draft.text, updatedAt: new Date() })
-    .onConflictDoUpdate({ target: days.date, set: { postDraft: draft.text, updatedAt: new Date() } })
+    }),
+  )
+  await savePost(date, draft.text)
   return c.json(draft)
 })
+
+// Rewrites the post as it stands now (with the user's own edits) for flow and grammar, keeping its facts.
+dayRoutes.post('/days/:date/polish', async (c) => {
+  const date = dateParam(c.req.param('date'))
+  const { text, tone } = await body(
+    c,
+    z.object({
+      text: z.string().trim().min(1, 'Write or draft a post first').max(5000),
+      tone: z.enum(['story', 'technical', 'short']).default('story'),
+    }),
+  )
+  if (!llmProvider()) throw new HTTPException(503, { message: 'Add a free GROQ_API_KEY to your settings to polish posts.' })
+  const polished = await withAi(() => polishPost(text, tone))
+  await savePost(date, polished.text)
+  return c.json(polished)
+})
+
+// Which AI drafts and polishes posts, so the page can say so (or explain how to turn it on).
+dayRoutes.get('/ai', (c) => c.json({ provider: llmProvider() }))
+
+async function withAi<T>(run: () => Promise<T>) {
+  try {
+    return await run()
+  } catch (error) {
+    // A rejected key is the server's problem, not the visitor's: 401 would sign the page out.
+    if (error instanceof LlmError) throw new HTTPException(error.status === 401 ? 502 : error.status, { message: error.message })
+    throw error
+  }
+}
+
+async function savePost(date: string, postDraft: string) {
+  await db
+    .insert(days)
+    .values({ date, postDraft, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: days.date, set: { postDraft, updatedAt: new Date() } })
+}
 
 dayRoutes.post('/days/:date/posted', async (c) => {
   const date = dateParam(c.req.param('date'))

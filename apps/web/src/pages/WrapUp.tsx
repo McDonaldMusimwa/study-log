@@ -72,7 +72,11 @@ function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; 
   const [commits, setCommits] = useState(day.commits)
   const [areas, setAreas] = useState(day.areas)
   const [draft, setDraft] = useState(day.postDraft)
-  const [source, setSource] = useState<'claude' | 'template' | null>(null)
+  // Who wrote the current draft text, shown under the author line.
+  const [madeBy, setMadeBy] = useState<string | null>(null)
+  // The draft as it was before the last polish, so the polish can be undone.
+  const [beforePolish, setBeforePolish] = useState<string | null>(null)
+  const ai = useQuery({ queryKey: ['ai'], queryFn: api.ai, staleTime: Infinity })
   const [tone, setTone] = useState<Tone>('story')
   const [copied, setCopied] = useState(false)
 
@@ -89,7 +93,26 @@ function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; 
     },
     onSuccess: (result) => {
       setDraft(result.text)
-      setSource(result.source)
+      setBeforePolish(null)
+      setMadeBy(result.provider ? `drafted by ${result.provider.label}` : 'template · add a free GROQ_API_KEY for AI drafts')
+      refresh()
+    },
+  })
+  const polish = useMutation({
+    mutationFn: () => api.polishPost(date, draft, tone),
+    onSuccess: (result) => {
+      setBeforePolish(draft)
+      setDraft(result.text)
+      setMadeBy(`polished by ${result.provider?.label ?? 'AI'}`)
+      refresh()
+    },
+  })
+  const undoPolish = useMutation({
+    mutationFn: (text: string) => api.saveDay(date, { ...values(), postDraft: text }),
+    onSuccess: (_, text) => {
+      setDraft(text)
+      setBeforePolish(null)
+      setMadeBy(null)
       refresh()
     },
   })
@@ -226,7 +249,7 @@ function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; 
               <span className="font-bold">McDonald Musimwa</span>
               <span className="text-[13px] text-muted">
                 Draft for LinkedIn · {draft.length.toLocaleString()} characters
-                {source === 'template' && ' · template (set ANTHROPIC_API_KEY for Claude drafts)'}
+                {madeBy && ` · ${madeBy}`}
               </span>
             </div>
           </div>
@@ -245,7 +268,38 @@ function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; 
                 {t.label}
               </button>
             ))}
+            <button
+              type="button"
+              disabled={!draft.trim() || polish.isPending || generate.isPending || !ai.data?.provider}
+              onClick={() => polish.mutate()}
+              title={
+                ai.data?.provider
+                  ? `Improve flow and grammar with ${ai.data.provider.label}, keeping your facts`
+                  : 'Add a free GROQ_API_KEY to turn on polishing'
+              }
+              className="btn ml-auto min-h-11 bg-accent-soft px-3.5 text-[13px] text-accent hover:bg-[#e2e5ff]"
+            >
+              {polish.isPending ? 'Polishing…' : 'Polish with AI'}
+            </button>
           </div>
+          {beforePolish !== null && (
+            <div className="mx-5.5 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-bg px-3 py-2 text-[13px] text-soft">
+              Polished. Your facts and [placeholders] are kept; check the wording sounds like you.
+              <button
+                type="button"
+                disabled={undoPolish.isPending}
+                onClick={() => undoPolish.mutate(beforePolish)}
+                className="min-h-9 cursor-pointer rounded-md px-2 font-semibold text-accent hover:bg-accent-soft"
+              >
+                Undo polish
+              </button>
+            </div>
+          )}
+          {ai.data && !ai.data.provider && (
+            <p className="mx-5.5 mt-3 text-[13px] text-muted">
+              AI drafting and polishing are off. Add a free Groq key (GROQ_API_KEY) to turn them on.
+            </p>
+          )}
           <label htmlFor="wrap-draft" className="sr-only">
             Post draft
           </label>
@@ -288,7 +342,7 @@ function WrapUpForm({ date, detail, notes }: { date: string; detail: DayDetail; 
             Fill in {placeholders.join(', ')} before copying. Those are facts only you know.
           </p>
         )}
-        <ErrorNote error={posted.error} />
+        <ErrorNote error={posted.error ?? polish.error ?? undoPolish.error} />
       </section>
     </div>
   )

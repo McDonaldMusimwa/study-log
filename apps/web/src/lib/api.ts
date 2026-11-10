@@ -84,6 +84,11 @@ export type DayDetail = { day: Day; sessions: DaySession[]; dayNumber: number }
 
 export type Tone = 'story' | 'technical' | 'short'
 
+// The model that drafts and polishes posts: Groq's free tier, or Claude.
+export type AiProvider = { name: 'groq' | 'claude'; model: string; label: string }
+
+export type Drafted = { text: string; source: 'ai' | 'template'; provider: AiProvider | null }
+
 export type ReviewItem = {
   id: number
   trackId: number
@@ -181,7 +186,10 @@ export const api = {
   day: (date: string) => request<DayDetail>('GET', `/days/${date}`),
   saveDay: (date: string, day: Omit<Day, 'date' | 'postedAt'>) => request<Day>('PUT', `/days/${date}`, day),
   draftPost: (date: string, tone: Tone) =>
-    request<{ text: string; source: 'claude' | 'template' }>('POST', `/days/${date}/draft`, { tone }),
+    request<Drafted>('POST', `/days/${date}/draft`, { tone }),
+  polishPost: (date: string, text: string, tone: Tone) =>
+    request<Drafted>('POST', `/days/${date}/polish`, { text, tone }),
+  ai: () => request<{ provider: AiProvider | null }>('GET', '/ai'),
   setPosted: (date: string, posted: boolean) =>
     request<{ postedAt: string | null }>('POST', `/days/${date}/posted`, { posted }),
   posts: () => request<Post[]>('GET', '/posts'),

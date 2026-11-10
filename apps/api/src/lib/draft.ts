@@ -1,6 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { env } from '../env.js'
 import type { Commit } from '../db/schema.js'
+import { complete, llmProvider, type Provider } from './llm.js'
 
 export type Tone = 'story' | 'technical' | 'short'
 
@@ -83,28 +82,27 @@ Next: ${input.next || '[what comes next]'}
 #SystemDesign #DevOps #LearningInPublic`
 }
 
-export class DraftRefusedError extends Error {}
+export type Drafted = { text: string; source: 'ai' | 'template'; provider: Provider | null }
 
-const client = env.anthropicApiKey ? new Anthropic({ apiKey: env.anthropicApiKey }) : null
+export async function draftPost(input: DraftInput): Promise<Drafted> {
+  if (!llmProvider()) return { text: template(input), source: 'template', provider: null }
+  const { text, provider } = await complete({ system: SYSTEM, prompt: describeDay(input) })
+  return { text, source: 'ai', provider }
+}
 
-export async function draftPost(input: DraftInput): Promise<{ text: string; source: 'claude' | 'template' }> {
-  if (!client) return { text: template(input), source: 'template' }
+const POLISH_SYSTEM = `You edit LinkedIn posts for McDonald Musimwa, a software developer moving into DevOps who is learning in public and connects each day's study to AI Trainer, the product he works on.
 
-  const response = await client.beta.messages.create({
-    model: 'claude-opus-5-5',
-    max_tokens: 16000,
-    // On a policy decline, the API retries the request on a fallback model inside the same call.
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    output_config: { effort: 'medium' },
-    system: SYSTEM,
-    messages: [{ role: 'user', content: describeDay(input) }],
-  })
+Polish the post he gives you: a stronger opening line, smoother flow, tighter sentences, correct grammar and spelling, and a short question for readers near the end if it lacks one. Keep his first-person voice: plain, specific and curious, without hype or buzzwords.
 
-  if (response.stop_reason === 'refusal') throw new DraftRefusedError('Claude declined to draft this post')
-  const text = response.content
-    .flatMap((block) => (block.type === 'text' ? [block.text] : []))
-    .join('')
-    .trim()
-  return { text, source: 'claude' }
+Keep every fact exactly as he wrote it. Never add facts, numbers, results, tools or claims that aren't in his text. Keep anything in square brackets, such as [build time before], exactly as written. Keep his hashtags, or add up to 3 relevant ones at the end if there are none. Plain text only: no markdown, no bold, no emoji. Reply with the polished post and nothing else.`
+
+const POLISH_TONES: Record<Tone, string> = {
+  story: 'Keep about the same length.',
+  technical: 'Keep about the same length and make the technical points crisp and precise.',
+  short: 'Tighten it to under 600 characters, keeping the main idea and the link to AI Trainer.',
+}
+
+export async function polishPost(text: string, tone: Tone): Promise<Drafted> {
+  const result = await complete({ system: POLISH_SYSTEM, prompt: `${POLISH_TONES[tone]}\n\nPost to polish:\n\n${text}` })
+  return { text: result.text, source: 'ai', provider: result.provider }
 }

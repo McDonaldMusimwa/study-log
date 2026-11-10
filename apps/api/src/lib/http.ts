@@ -3,10 +3,13 @@ import { HTTPException } from 'hono/http-exception'
 import type { z } from 'zod'
 import { isDate } from './dates.js'
 
-// Parses a JSON body against a schema; a mismatch becomes a 400 with zod's message.
+// Parses a JSON body against a schema; a mismatch becomes a 400 that names the field, e.g. "text: Too small".
 export async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T>> {
   const parsed = schema.safeParse(await c.req.json().catch(() => undefined))
-  if (!parsed.success) throw new HTTPException(400, { message: parsed.error.message })
+  if (!parsed.success) {
+    const message = parsed.error.issues.map((issue) => [issue.path.join('.'), issue.message].filter(Boolean).join(': ')).join('; ')
+    throw new HTTPException(400, { message })
+  }
   return parsed.data
 }
 

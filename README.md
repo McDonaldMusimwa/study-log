@@ -10,7 +10,7 @@ A daily log for learning system design and DevOps in public. It tracks the study
   - A **Pomodoro timer**: 25-minute focus rounds, then a 5-minute break that starts on its own, with a 15-minute break after every fourth round.
   - Pause and resume. Only focus time counts toward your hours.
   - When a session ends you log the chapter, section, lesson or problem, what clicked, and what you produced.
-- **Wrap-up:** three questions: what clicked, where it showed up in AI Trainer (with that day's AI Trainer commits from GitHub to tick), and what's next. Claude then drafts the LinkedIn post.
+- **Wrap-up:** three questions: what clicked, where it showed up in AI Trainer (with that day's AI Trainer commits from GitHub to tick), and what's next. An AI then drafts the LinkedIn post (Groq's free tier by default), and **Polish with AI** smooths your own edited version without changing its facts.
   - You can switch between Story, Technical and Short tones and edit the draft.
   - Copy stays disabled while the draft has `[placeholders]` for facts only you know, so a post never goes out with made-up numbers.
 - **Progress:** hours this week against the 14-hour target, a streak (weekends don't break it), a 12-week heatmap, weekly hours, and per-track progress with chapter, section and lesson status.
@@ -23,7 +23,7 @@ A daily log for learning system design and DevOps in public. It tracks the study
 | Part | Tech |
 |---|---|
 | `apps/web` | React, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router |
-| `apps/api` | Hono, Drizzle ORM, SQLite through libSQL, Anthropic SDK (Claude Opus 5.5) |
+| `apps/api` | Hono, Drizzle ORM, SQLite through libSQL, Groq (free, OpenAI-compatible API) or the Anthropic SDK for post drafting |
 | `netlify/functions/api.mts` | Runs the API on Netlify as a single function at `/api/*` |
 | Database | A SQLite file locally and in Docker; [Turso](https://turso.tech) (hosted SQLite) on Netlify |
 
@@ -50,7 +50,7 @@ Netlify Functions don't keep files between requests, so a SQLite file there woul
    | `DATABASE_URL` | the `libsql://...` URL |
    | `DATABASE_AUTH_TOKEN` | the Turso token |
    | `APP_PASSWORD` | *(optional)* turns on a login screen |
-   | `ANTHROPIC_API_KEY` | for Claude drafts |
+   | `GROQ_API_KEY` | *(optional, free)* AI drafting and polishing of the post. Get one at [console.groq.com/keys](https://console.groq.com/keys) |
    | `GITHUB_TOKEN` | optional |
 
 4. **Deploy.** Each deploy runs the database migrations against Turso first, then builds the web app. On the first deploy, the migration creates the tables and seeds the tracks, DDIA's chapters and the weekly routine.
@@ -58,7 +58,7 @@ Netlify Functions don't keep files between requests, so a SQLite file there woul
 ## Run it with Docker
 
 ```sh
-cp .env.example .env        # optional: ANTHROPIC_API_KEY, APP_PASSWORD
+cp .env.example .env        # optional: GROQ_API_KEY, APP_PASSWORD
 docker compose up -d --build
 ```
 
@@ -95,6 +95,8 @@ Migrations in `apps/api/drizzle/` apply when the API container starts, and on ev
 | `DATABASE_URL` | `file:...` for a local SQLite file, or a Turso `libsql://` URL |
 | `DATABASE_AUTH_TOKEN` | Turso token (not needed for a local file) |
 | `APP_PASSWORD` | Optional. Turns on the login screen. |
-| `ANTHROPIC_API_KEY` | Lets Claude draft the posts. Without it, the wrap-up fills in a template instead. |
+| `GROQ_API_KEY` | Free AI (Groq, Llama 3.3 70B by default) that drafts the post and powers **Polish with AI**. Without it, the wrap-up fills in a template. |
+| `GROQ_MODEL` | Optional: another model Groq serves. |
+| `ANTHROPIC_API_KEY` | Optional and paid: Claude instead of Groq, used only when `GROQ_API_KEY` is empty. |
 | `GITHUB_TOKEN` | Optional for a public repo. A read-only fine-grained token avoids GitHub's rate limit of 60 requests an hour. |
 | `GITHUB_REPO` | The repo whose commits appear on the wrap-up screen (default `McDonaldMusimwa/Aitrainer`). |
